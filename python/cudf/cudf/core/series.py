@@ -60,7 +60,7 @@ from cudf.core.column.string import StringMethods
 from cudf.core.column.struct import StructMethods
 from cudf.core.column_accessor import ColumnAccessor
 from cudf.core.groupby.groupby import SeriesGroupBy, groupby_doc_template
-from cudf.core.index import BaseIndex, RangeIndex, as_index
+from cudf.core.index import BaseIndex, DatetimeIndex, RangeIndex, as_index
 from cudf.core.indexed_frame import (
     IndexedFrame,
     _FrameIndexer,
@@ -346,7 +346,7 @@ class Series(SingleColumnFrame, IndexedFrame, Serializable):
     as null/NaN).
 
     Operations between Series (`+`, `-`, `/`, `*`, `**`) align
-    values based on their associated index values-– they need
+    values based on their associated index values, they need
     not be the same length. The result index will be the
     sorted union of the two indexes.
 
@@ -360,7 +360,7 @@ class Series(SingleColumnFrame, IndexedFrame, Serializable):
     index : array-like or Index (1d)
         Values must be hashable and have the same length
         as data. Non-unique index values are allowed. Will
-        default to RangeIndex (0, 1, 2, …, n) if not provided.
+        default to RangeIndex (0, 1, 2, ..., n) if not provided.
         If both a dict and index sequence are used, the index will
         override the keys found in the dict.
 
@@ -512,7 +512,7 @@ class Series(SingleColumnFrame, IndexedFrame, Serializable):
         elif isinstance(data, pd.Index):
             if name is None:
                 name = data.name
-            data = data.values
+            data = as_column(data, nan_as_null=nan_as_null, dtype=dtype)
         elif isinstance(data, BaseIndex):
             if name is None:
                 name = data.name
@@ -536,11 +536,24 @@ class Series(SingleColumnFrame, IndexedFrame, Serializable):
                 data = data.astype(dtype)
 
         if isinstance(data, dict):
-            index = data.keys()
-            data = column.as_column(
-                list(data.values()), nan_as_null=nan_as_null, dtype=dtype
-            )
-
+            current_index = data.keys()
+            if index is not None:
+                series = Series(
+                    list(data.values()),
+                    nan_as_null=nan_as_null,
+                    dtype=dtype,
+                    index=current_index,
+                )
+                new_index = as_index(index)
+                if not series.index.equals(new_index):
+                    series = series.reindex(new_index)
+                data = series._column
+                index = series._index
+            else:
+                data = column.as_column(
+                    list(data.values()), nan_as_null=nan_as_null, dtype=dtype
+                )
+                index = current_index
         if data is None:
             if index is not None:
                 data = column.column_empty(
@@ -571,6 +584,7 @@ class Series(SingleColumnFrame, IndexedFrame, Serializable):
                 data,
                 nan_as_null=nan_as_null,
                 dtype=dtype,
+                length=len(index) if index is not None else None,
             )
             if copy and has_cai:
                 data = data.copy(deep=True)
@@ -585,6 +599,7 @@ class Series(SingleColumnFrame, IndexedFrame, Serializable):
 
         super().__init__({name: data})
         self._index = RangeIndex(len(data)) if index is None else index
+        self._check_data_index_length_match()
 
     @classmethod
     @_cudf_nvtx_annotate
@@ -1526,15 +1541,7 @@ class Series(SingleColumnFrame, IndexedFrame, Serializable):
 
         col = concat_columns([o._column for o in objs])
 
-        # Reassign precision for decimal cols & type schema for struct cols
-        if isinstance(
-            col,
-            (
-                cudf.core.column.DecimalBaseColumn,
-                cudf.core.column.StructColumn,
-                cudf.core.column.ListColumn,
-            ),
-        ):
+        if len(objs):
             col = col._with_type_metadata(objs[0].dtype)
 
         return cls(data=col, index=index, name=name)
@@ -4585,6 +4592,21 @@ class DatetimeProperties:
         )
         return Series(
             data=str_col, index=self.series._index, name=self.series.name
+        )
+
+    @copy_docstring(DatetimeIndex.tz_localize)
+    def tz_localize(self, tz, ambiguous="NaT", nonexistent="NaT"):
+        from cudf.core._internals.timezones import localize
+
+        if tz is None:
+            result_col = self.series._column._local_time
+        else:
+            result_col = localize(
+                self.series._column, tz, ambiguous, nonexistent
+            )
+        return Series._from_data(
+            data={self.series.name: result_col},
+            index=self.series._index,
         )
 
 

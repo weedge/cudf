@@ -705,7 +705,6 @@ class DataFrame(IndexedFrame, Serializable, GetAttrGetItemMixin):
 
                     self._data = new_df._data
                     self._index = new_df._index
-                    self._check_data_index_length_match()
                 elif len(data) > 0 and isinstance(data[0], Series):
                     self._init_from_series_list(
                         data=data, columns=columns, index=index
@@ -714,7 +713,7 @@ class DataFrame(IndexedFrame, Serializable, GetAttrGetItemMixin):
                     self._init_from_list_like(
                         data, index=index, columns=columns
                     )
-
+                self._check_data_index_length_match()
             else:
                 if not is_dict_like(data):
                     raise TypeError("data must be list or dict-like")
@@ -722,18 +721,10 @@ class DataFrame(IndexedFrame, Serializable, GetAttrGetItemMixin):
                 self._init_from_dict_like(
                     data, index=index, columns=columns, nan_as_null=nan_as_null
                 )
+                self._check_data_index_length_match()
 
         if dtype:
             self._data = self.astype(dtype)._data
-
-    def _check_data_index_length_match(df: DataFrame) -> None:
-        # Validate that the number of rows in the data matches the index if the
-        # data is not empty. This is a helper for the constructor.
-        if df._data.nrows > 0 and df._data.nrows != len(df._index):
-            raise ValueError(
-                f"Shape of passed values is {df.shape}, indices imply "
-                f"({len(df._index)}, {df._num_columns})"
-            )
 
     @_cudf_nvtx_annotate
     def _init_from_series_list(self, data, columns, index):
@@ -1706,20 +1697,10 @@ class DataFrame(IndexedFrame, Serializable, GetAttrGetItemMixin):
                 out = out.set_index(
                     cudf.core.index.as_index(out.index._values)
                 )
-
-        # Reassign precision for decimal cols & type schema for struct cols
         for name, col in out._data.items():
-            if isinstance(
-                col,
-                (
-                    cudf.core.column.DecimalBaseColumn,
-                    cudf.core.column.StructColumn,
-                    cudf.core.column.ListColumn,
-                ),
-            ):
-                out._data[name] = col._with_type_metadata(
-                    tables[0]._data[name].dtype
-                )
+            out._data[name] = col._with_type_metadata(
+                tables[0]._data[name].dtype
+            )
 
         # Reassign index and column names
         if objs[0]._data.multiindex:
@@ -3814,10 +3795,7 @@ class DataFrame(IndexedFrame, Serializable, GetAttrGetItemMixin):
                 )
                 for codes in result_columns
             ]
-        elif isinstance(
-            source_dtype,
-            (cudf.ListDtype, cudf.StructDtype, cudf.core.dtypes.DecimalDtype),
-        ):
+        else:
             result_columns = [
                 result_column._with_type_metadata(source_dtype)
                 for result_column in result_columns
