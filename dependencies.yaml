@@ -69,10 +69,8 @@ files:
     extras:
       table: build-system
     includes:
-      - build_all
       - build_python
       - build_python_common
-      - build_wheels
   py_run_cudf:
     output: pyproject
     pyproject_dir: python/cudf
@@ -170,12 +168,10 @@ channels:
 dependencies:
   build_all:
     common:
-      - output_types: [conda, requirements, pyproject]
+      - output_types: conda
         packages:
           - &cmake_ver cmake>=3.26.4
           - ninja
-      - output_types: conda
-        packages:
           - c-compiler
           - cxx-compiler
           - dlpack>=0.5,<0.6.0a0
