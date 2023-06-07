@@ -240,7 +240,7 @@ dependencies:
     common:
       - output_types: [conda, requirements, pyproject]
         packages:
-          - scikit-build>=0.13.1
+          - scikit-build-core
           - rmm==23.8.*
       - output_types: conda
         packages:
