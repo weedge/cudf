@@ -98,7 +98,7 @@ jobs:
   wheel-build-cudf:
     needs: checks
     secrets: inherit
-    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@scikit-build-core
+    uses: rapidsai/shared-action-workflows/.github/workflows/wheels-manylinux-build.yml@feat/scikit-build-core
     with:
       build_type: pull-request
       package-name: cudf
