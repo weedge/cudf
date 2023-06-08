@@ -71,7 +71,7 @@ target_link_libraries(strings_udf PUBLIC cudf_strings_udf)
 find_package(Python REQUIRED COMPONENTS NumPy)
 set(targets_using_numpy interop avro csv orc json parquet)
 foreach(target IN LISTS targets_using_numpy)
-   target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
+  target_include_directories(${target} PRIVATE "${Python_NumPy_INCLUDE_DIRS}")
 endforeach()
 
 set(targets_using_dlpack interop)
