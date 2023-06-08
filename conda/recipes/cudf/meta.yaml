@@ -51,7 +51,7 @@ requirements:
     - protobuf >=4.21.6,<4.22
     - python
     - cython >=0.29,<0.30
-    - scikit-build >=0.13.1
+    - scikit-build-core
     - setuptools
     - dlpack >=0.5,<0.6.0a0
     - pyarrow =11
