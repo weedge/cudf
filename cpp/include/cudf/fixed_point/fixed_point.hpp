@@ -20,11 +20,8 @@
 #include <cudf/fixed_point/temporary.hpp>
 #include <cudf/types.hpp>
 
-// Note: The <cuda/std/*> versions are used in order for Jitify to work with our fixed_point type.
-//       Jitify is needed for several algorithms (binaryop, rolling, etc)
-#include <cuda/std/climits>
 #include <cuda/std/limits>
-#include <cuda/std/type_traits>  // add cuda namespace
+#include <cuda/std/type_traits>
 
 #include <algorithm>
 #include <cassert>
@@ -832,5 +829,5 @@ using decimal32  = fixed_point<int32_t, Radix::BASE_10>;     ///<  32-bit decima
 using decimal64  = fixed_point<int64_t, Radix::BASE_10>;     ///<  64-bit decimal fixed point
 using decimal128 = fixed_point<__int128_t, Radix::BASE_10>;  ///< 128-bit decimal fixed point
 
-/** @} */                                                    // end of group
+/** @} */  // end of group
 }  // namespace numeric

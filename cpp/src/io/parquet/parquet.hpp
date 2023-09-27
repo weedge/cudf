@@ -18,6 +18,8 @@
 
 #include "parquet_common.hpp"
 
+#include <thrust/optional.h>
+
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -119,6 +121,16 @@ struct LogicalType {
 };
 
 /**
+ * Union to specify the order used for the min_value and max_value fields for a column.
+ */
+struct ColumnOrder {
+  enum Type { UNDEFINED, TYPE_ORDER };
+  Type type;
+
+  operator Type() const { return type; }
+};
+
+/**
  * @brief Struct for describing an element/field in the Parquet format schema
  *
  * Parquet is a strongly-typed format so the file layout can be interpreted as
@@ -135,7 +147,7 @@ struct SchemaElement {
   int32_t num_children                = 0;
   int32_t decimal_scale               = 0;
   int32_t decimal_precision           = 0;
-  std::optional<int32_t> field_id     = std::nullopt;
+  thrust::optional<int32_t> field_id  = thrust::nullopt;
   bool output_as_byte_array           = false;
 
   // The following fields are filled in later during schema initialization
@@ -180,10 +192,13 @@ struct SchemaElement {
   // https://github.com/apache/parquet-cpp/blob/642da05/src/parquet/schema.h#L49-L50
   // One-level LIST encoding: Only allows required lists with required cells:
   //   repeated value_type name
-  [[nodiscard]] bool is_one_level_list() const
+  [[nodiscard]] bool is_one_level_list(SchemaElement const& parent) const
   {
-    return repetition_type == REPEATED and num_children == 0;
+    return repetition_type == REPEATED and num_children == 0 and not parent.is_list();
   }
+
+  // returns true if the element is a list
+  [[nodiscard]] bool is_list() const { return converted_type == LIST; }
 
   // in parquet terms, a group is a level of nesting in the schema. a group
   // can be a struct or a list
@@ -223,8 +238,8 @@ struct ColumnChunkMetaData {
   int64_t data_page_offset  = 0;  // Byte offset from beginning of file to first data page
   int64_t index_page_offset = 0;  // Byte offset from beginning of file to root index page
   int64_t dictionary_page_offset =
-    0;  // Byte offset from the beginning of file to first (only) dictionary page
-  std::vector<uint8_t> statistics_blob;  // Encoded chunk-level statistics as binary blob
+    0;                    // Byte offset from the beginning of file to first (only) dictionary page
+  Statistics statistics;  // Encoded chunk-level statistics
 };
 
 /**
@@ -281,8 +296,8 @@ struct FileMetaData {
   int64_t num_rows = 0;
   std::vector<RowGroup> row_groups;
   std::vector<KeyValue> key_value_metadata;
-  std::string created_by         = "";
-  uint32_t column_order_listsize = 0;
+  std::string created_by = "";
+  thrust::optional<std::vector<ColumnOrder>> column_orders;
 };
 
 /**
@@ -293,6 +308,20 @@ struct DataPageHeader {
   Encoding encoding                  = Encoding::PLAIN;  // Encoding used for this data page
   Encoding definition_level_encoding = Encoding::PLAIN;  // Encoding used for definition levels
   Encoding repetition_level_encoding = Encoding::PLAIN;  // Encoding used for repetition levels
+};
+
+/**
+ * @brief Thrift-derived struct describing the header for a V2 data page
+ */
+struct DataPageHeaderV2 {
+  int32_t num_values = 0;  // Number of values, including NULLs, in this data page.
+  int32_t num_nulls  = 0;  // Number of NULL values, in this data page.
+  int32_t num_rows   = 0;  // Number of rows in this data page. which means
+                           // pages change on record boundaries (r = 0)
+  Encoding encoding                     = Encoding::PLAIN;  // Encoding used for this data page
+  int32_t definition_levels_byte_length = 0;                // length of the definition levels
+  int32_t repetition_levels_byte_length = 0;                // length of the repetition levels
+  bool is_compressed                    = true;             // whether the values are compressed.
 };
 
 /**
@@ -319,6 +348,7 @@ struct PageHeader {
   int32_t compressed_page_size   = 0;  // Compressed page size in bytes (not including the header)
   DataPageHeader data_page_header;
   DictionaryPageHeader dictionary_page_header;
+  DataPageHeaderV2 data_page_header_v2;
 };
 
 /**
@@ -347,8 +377,8 @@ struct ColumnIndex {
   std::vector<std::vector<uint8_t>> min_values;  // lower bound for values in each page
   std::vector<std::vector<uint8_t>> max_values;  // upper bound for values in each page
   BoundaryOrder boundary_order =
-    BoundaryOrder::UNORDERED;                    // Indicates if min and max values are ordered
-  std::vector<int64_t> null_counts;              // Optional count of null values per page
+    BoundaryOrder::UNORDERED;        // Indicates if min and max values are ordered
+  std::vector<int64_t> null_counts;  // Optional count of null values per page
 };
 
 // bit space we are reserving in column_buffer::user_data

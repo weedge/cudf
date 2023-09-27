@@ -63,11 +63,6 @@ rapids_cython_create_modules(
   LINKED_LIBRARIES "${linked_libraries}" ASSOCIATED_TARGETS cudf
 )
 
-# All modules need to include the header containing the exception handler.
-foreach(target IN LISTS RAPIDS_CYTHON_CREATED_TARGETS)
-  target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_LIST_DIR})
-endforeach()
-
 target_link_libraries(strings_udf cudf_strings_udf)
 
 # TODO: Finding NumPy currently requires finding Development due to a bug in CMake. This bug was
@@ -103,14 +98,22 @@ find_package(Python 3.9 REQUIRED COMPONENTS Interpreter)
 execute_process(
   COMMAND "${Python_EXECUTABLE}" -c "import pyarrow; print(pyarrow.get_include())"
   OUTPUT_VARIABLE PYARROW_INCLUDE_DIR
+  ERROR_VARIABLE PYARROW_ERROR
+  RESULT_VARIABLE PYARROW_RESULT
   OUTPUT_STRIP_TRAILING_WHITESPACE
 )
+
+if(${PYARROW_RESULT})
+  message(FATAL_ERROR "Error while trying to obtain pyarrow include directory:\n${PYARROW_ERROR}")
+endif()
 
 set(targets_using_arrow_headers interop avro csv orc json parquet)
 foreach(target IN LISTS targets_using_arrow_headers)
   target_include_directories(${target} PRIVATE "${PYARROW_INCLUDE_DIR}")
 endforeach()
 
+add_subdirectory(cpp)
 add_subdirectory(io)
 add_subdirectory(nvtext)
+add_subdirectory(pylibcudf)
 add_subdirectory(strings)

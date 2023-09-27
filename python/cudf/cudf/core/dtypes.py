@@ -42,7 +42,11 @@ def dtype(arbitrary):
     -------
     dtype: the cuDF-supported dtype that best matches `arbitrary`
     """
-    # first, try interpreting arbitrary as a NumPy dtype that we support:
+    #  first, check if `arbitrary` is one of our extension types:
+    if isinstance(arbitrary, cudf.core.dtypes._BaseDtype):
+        return arbitrary
+
+    # next, try interpreting arbitrary as a NumPy dtype that we support:
     try:
         np_dtype = np.dtype(arbitrary)
         if np_dtype.kind in ("OU"):
@@ -53,10 +57,6 @@ def dtype(arbitrary):
         if np_dtype not in cudf._lib.types.SUPPORTED_NUMPY_TO_LIBCUDF_TYPES:
             raise TypeError(f"Unsupported type {np_dtype}")
         return np_dtype
-
-    #  next, check if `arbitrary` is one of our extension types:
-    if isinstance(arbitrary, cudf.core.dtypes._BaseDtype):
-        return arbitrary
 
     # use `pandas_dtype` to try and interpret
     # `arbitrary` as a Pandas extension type.
@@ -143,6 +143,16 @@ class CategoricalDtype(_BaseDtype):
         None can be used to maintain the ordered value of existing categoricals
         when used in operations that combine categoricals, e.g. astype, and
         will resolve to False if there is no existing ordered to maintain.
+
+    Attributes
+    ----------
+    categories
+    ordered
+
+    Methods
+    -------
+    from_pandas
+    to_pandas
 
     Examples
     --------
@@ -320,6 +330,16 @@ class ListDtype(_BaseDtype):
     element_type : object
         A dtype with which represents the element types in the list.
 
+    Attributes
+    ----------
+    element_type
+    leaf_type
+
+    Methods
+    -------
+    from_arrow
+    to_arrow
+
     Examples
     --------
     >>> import cudf
@@ -496,6 +516,16 @@ class StructDtype(_BaseDtype):
         A mapping of field names to dtypes, the dtypes can themselves
         be of ``StructDtype`` too.
 
+    Attributes
+    ----------
+    fields
+    itemsize
+
+    Methods
+    -------
+    from_arrow
+    to_arrow
+
     Examples
     --------
     >>> import cudf
@@ -649,19 +679,32 @@ decimal_dtype_template = textwrap.dedent(
         scale : int, optional
             The scale of the dtype. See Notes below.
 
+        Attributes
+        ----------
+        precision
+        scale
+        itemsize
+
+        Methods
+        -------
+        to_arrow
+        from_arrow
+
         Notes
         -----
-            When the scale is positive:
-                - numbers with fractional parts (e.g., 0.0042) can be represented
-                - the scale is the total number of digits to the right of the
-                decimal point
-            When the scale is negative:
-                - only multiples of powers of 10 (including 10**0) can be
-                represented (e.g., 1729, 4200, 1000000)
-                - the scale represents the number of trailing zeros in the value.
-            For example, 42 is representable with precision=2 and scale=0.
-            13.0051 is representable with precision=6 and scale=4,
-            and *not* representable with precision<6 or scale<4.
+        When the scale is positive:
+            - numbers with fractional parts (e.g., 0.0042) can be represented
+            - the scale is the total number of digits to the right of the
+              decimal point
+
+        When the scale is negative:
+            - only multiples of powers of 10 (including 10**0) can be
+              represented (e.g., 1729, 4200, 1000000)
+            - the scale represents the number of trailing zeros in the value.
+
+        For example, 42 is representable with precision=2 and scale=0.
+        13.0051 is representable with precision=6 and scale=4,
+        and *not* representable with precision<6 or scale<4.
 
         Examples
         --------
@@ -862,8 +905,11 @@ class IntervalDtype(StructDtype):
     def subtype(self):
         return self.fields["left"]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"interval[{self.subtype}, {self.closed}]"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
     @classmethod
     def from_arrow(cls, typ):
@@ -1064,7 +1110,7 @@ def is_interval_dtype(obj):
             obj,
             (
                 cudf.core.dtypes.IntervalDtype,
-                pd.core.dtypes.dtypes.IntervalDtype,
+                pd.IntervalDtype,
             ),
         )
         or obj is cudf.core.dtypes.IntervalDtype

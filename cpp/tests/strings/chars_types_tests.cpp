@@ -32,7 +32,7 @@ class CharsTypes : public StringsCharsTest,
 
 TEST_P(CharsTypes, AllTypes)
 {
-  std::vector<const char*> h_strings{"Héllo",
+  std::vector<char const*> h_strings{"Héllo",
                                      "thesé",
                                      nullptr,
                                      "HERE",
@@ -50,17 +50,17 @@ TEST_P(CharsTypes, AllTypes)
                                      "\t\r\n\f "};
 
   bool expecteds[] = {false, false, false, false, false, false, false, false,
-                      false, false, false, false, false, true,  false, false,   // decimal
+                      false, false, false, false, false, true,  false, false,  // decimal
                       false, false, false, false, false, false, false, false,
-                      false, true,  false, true,  false, true,  false, false,   // numeric
+                      false, true,  false, true,  false, true,  false, false,  // numeric
                       false, false, false, false, false, false, false, false,
-                      false, false, false, true,  false, true,  false, false,   // digit
+                      false, false, false, true,  false, true,  false, false,  // digit
                       true,  true,  false, true,  false, false, false, false,
-                      false, false, false, false, false, false, true,  false,   // alpha
+                      false, false, false, false, false, false, true,  false,  // alpha
                       false, false, false, false, false, false, false, false,
-                      false, false, false, false, false, false, false, true,    // space
+                      false, false, false, false, false, false, false, true,  // space
                       false, false, false, true,  false, false, false, false,
-                      false, false, false, false, false, false, false, false,   // upper
+                      false, false, false, false, false, false, false, false,  // upper
                       false, true,  false, false, false, false, false, false,
                       false, false, false, false, false, false, true,  false};  // lower
 
@@ -121,7 +121,7 @@ TEST_F(StringsCharsTest, LowerUpper)
 
 TEST_F(StringsCharsTest, Alphanumeric)
 {
-  std::vector<const char*> h_strings{"Héllo",
+  std::vector<char const*> h_strings{"Héllo",
                                      "thesé",
                                      nullptr,
                                      "HERE",
@@ -157,7 +157,7 @@ TEST_F(StringsCharsTest, Alphanumeric)
 
 TEST_F(StringsCharsTest, AlphaNumericSpace)
 {
-  std::vector<const char*> h_strings{"Héllo",
+  std::vector<char const*> h_strings{"Héllo",
                                      "thesé",
                                      nullptr,
                                      "HERE",
@@ -195,7 +195,7 @@ TEST_F(StringsCharsTest, AlphaNumericSpace)
 
 TEST_F(StringsCharsTest, Numerics)
 {
-  std::vector<const char*> h_strings{"Héllo",
+  std::vector<char const*> h_strings{"Héllo",
                                      "thesé",
                                      nullptr,
                                      "HERE",

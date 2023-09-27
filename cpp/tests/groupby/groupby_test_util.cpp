@@ -77,7 +77,7 @@ void test_single_agg(cudf::column_view const& keys,
   cudf::groupby::groupby gb_obj(
     cudf::table_view({keys}), include_null_keys, keys_are_sorted, column_order, precedence);
 
-  auto result = gb_obj.aggregate(requests);
+  auto result = gb_obj.aggregate(requests, cudf::test::get_default_stream());
   cudf::test::print(result.second[0].results[0]->view());
   cudf::test::print(sorted_expect_vals->get_column(0));
 
