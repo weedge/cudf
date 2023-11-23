@@ -918,8 +918,14 @@ class ColumnBase(Column, Serializable, BinaryOperand, Reducible):
         """
         # We've already matched dtypes by now
         result = libcudf.search.contains(rhs, self)
-        if result.null_count:
-            return result.fillna(False)
+        # libcudf contains runs the search with nulls comparing equal
+        # and then copying the bitmask from the needles to the result.
+        # In cudf, we want nulls in both needle and haystack to
+        # produce True and nulls in only one to produce False. If we
+        # drop the bitmask of the result on the floor, it already
+        # contains the values we want. We can do this unilaterally
+        # without checking the null count of the result.
+        result.set_base_mask(None)
         return result
 
     def as_mask(self) -> Buffer:
