@@ -584,6 +584,18 @@ std::unique_ptr<cudf::column> multibyte_split(cudf::io::text::data_chunk_source 
   return multibyte_split(source, delimiter, parse_options{}, mr);
 }
 
+std::unique_ptr<cudf::column> multibyte_split(cudf::io::text::data_chunk_source const& source,
+                                              std::string const& delimiter,
+                                              parse_options options,
+                                              rmm::cuda_stream_view stream,
+                                              rmm::mr::device_memory_resource* mr)
+{
+  auto result = detail::multibyte_split(
+    source, delimiter, options.byte_range, options.strip_delimiters, stream, mr);
+
+  return result;
+}
+
 }  // namespace text
 }  // namespace io
 }  // namespace cudf
